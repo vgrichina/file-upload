@@ -80,7 +80,7 @@ function upload_file(req, res) {
                 // Ask to open/create file (if not asked before)
                 if (openPromise == null) {
                     sys.debug("Opening file");
-                    openPromise = posix.open("./" + part.filename, process.O_CREAT | process.O_WRONLY, 0600);
+                    openPromise = posix.open("./uploads/" + part.filename, process.O_CREAT | process.O_WRONLY, 0600);
                 }
                 openPromise.addCallback(function(fd) {
                     sys.debug("File opened");
