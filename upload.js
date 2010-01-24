@@ -40,6 +40,20 @@ function display_form(req, res) {
 /*
  * Handle file upload
  */
+function write_chunk(fileDescriptor, chunk, isLast) {
+    // Write chunk to file
+    sys.debug("Writing chunk");
+    posix.write(fileDescriptor, chunk).addCallback(function() {
+        // Close file if completed
+        if (isLast) {
+            sys.debug("Closing file");
+            posix.close(fileDescriptor).addCallback(function() {
+                sys.debug("Closed file");
+            });
+        }
+    });
+}
+
 function upload_file(req, res) {
     req.setBodyEncoding("binary");
 
@@ -49,39 +63,39 @@ function upload_file(req, res) {
     // Add handler for a request part received
     stream.addListener("part", function(part) {
         sys.debug("Received part, name = " + part.name + ", filename = " + part.filename);
-
-        // Ask to open/create file
-        var fileOpen = posix.open("./tmp.file", process.O_CREAT | process.O_WRONLY, 0600);
+        
         var fileDescriptor = null;
-        fileOpen.addCallback(function(fd) {
-            fileDescriptor = fd;
-        });
+        var openPromise = null;
 
         // Add handler for a request part body chunk received
         part.addListener("body", function(chunk) {
             var progress = (stream.bytesReceived / stream.bytesTotal * 100).toFixed(2);
             var mb = (stream.bytesTotal / 1024 / 1024).toFixed(1);
      
-            sys.debug("Uploading "+mb+"mb ("+progress+"%)");
+            sys.debug("Uploading " + mb + "mb (" + progress + "%)");
 
-            // chunk could be appended to a file if the uploaded file needs to be saved
-          
             // Wait for file to be opened if needed
             if (fileDescriptor == null) {
                 sys.debug("Waiting for file");
-                fileOpen.wait();
+                // Ask to open/create file (if not asked before)
+                if (openPromise == null) {
+                    sys.debug("Opening file");
+                    openPromise = posix.open("./" + part.filename, process.O_CREAT | process.O_WRONLY, 0600);
+                }
+                openPromise.addCallback(function(fd) {
+                    sys.debug("File opened");
+                    // Write chunk to file
+                    fileDescriptor = fd;
+                    write_chunk(fileDescriptor, chunk, (stream.bytesReceived == stream.bytesTotal));
+                });
+            } else {
+                // Write chunk to file
+                write_chunk(fileDescriptor, chunk, (stream.bytesReceived == stream.bytesTotal));
             }
+        });
 
-            // Write chunk to file
-            sys.debug("Writing chunk");
-            posix.write(fileDescriptor, chunk).wait();
-       
-            // Close file if needed
-            if (stream.bytesReceived == stream.bytesTotal) {
-                sys.debug("Closing file");
-                posix.close(fileDescriptor).wait();
-                sys.debug("Closed file");
-            }
+        part.addListener("complete", function() {
+            sys.debug("Part complete"); 
         });
     });
 
@@ -89,6 +103,7 @@ function upload_file(req, res) {
     stream.addListener("complete", function() {
         sys.debug("Request complete");
 
+        // TODO: Wait until all chunks are written
         res.sendHeader(200, {"Content-Type": "text/plain"});
         res.sendBody("Thanks for playing!");
         res.finish();
