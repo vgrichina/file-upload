@@ -36,11 +36,16 @@ function display_form(req, res) {
     res.close();
 }
 
-// TODO: Comment it
+/*
+ * Create multipart parser to parse given request
+ */
 function parse_multipart(req) {
     var parser = multipart.parser();
 
+    // Make parser use parsed request headers
     parser.headers = req.headers;
+
+    // Add listeners to request, transfering data to parser
 
     req.addListener("data", function(chunk) {
         parser.write(chunk);
