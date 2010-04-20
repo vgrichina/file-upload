@@ -1,6 +1,6 @@
 var http = require("http");
 var url = require("url");
-var multipart = require("../node_projects/multipart-js/lib/multipart");
+var multipart = require("multipart");
 var sys = require("sys");
 var fs = require("fs");
 
