@@ -74,7 +74,7 @@ function upload_file(req, res) {
     // Set handler for a request part received
     stream.onPartBegin = function(part) {
         sys.debug("Started part, name = " + part.name + ", filename = " + part.filename);
-     
+
         // Construct file name
         fileName = "./uploads/" + stream.part.filename;
 
@@ -98,8 +98,10 @@ function upload_file(req, res) {
         req.pause();
 
         // Write chunk to file
+        // Note that it is important to write in binary mode
+        // Otherwise UTF-8 characters are interpreted
         sys.debug("Writing chunk");
-        fileStream.write(chunk);
+        fileStream.write(chunk, "binary");
     };
 
     // Set handler for request completed
